@@ -1,0 +1,157 @@
+diff --git a/cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu b/cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu
+index 1234567..abcdefg 100644
+--- a/cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu
++++ b/cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu
+@@ -22,6 +22,7 @@
+ // Import heuristicTopKJob (__device__ __noinline__) and all helpers.
+ // heuristicTopKJob is independently optimized by ptxas, matching standalone
+ // SASS quality regardless of the caller's prologue code.
++#define GVR_PHASE_TIMING  // Enable per-phase clock64() instrumentation (profiling only)
+ #include "tensorrt_llm/kernels/heuristic_topk.cuh"
+
+ #include <cfloat>
+diff --git a/cpp/tensorrt_llm/kernels/heuristic_topk.cuh b/cpp/tensorrt_llm/kernels/heuristic_topk.cuh
+index 1234567..abcdefg 100644
+--- a/cpp/tensorrt_llm/kernels/heuristic_topk.cuh
++++ b/cpp/tensorrt_llm/kernels/heuristic_topk.cuh
+@@ -83,6 +83,10 @@ struct KernelSmem
+
+     float pmax_saved;
+     int out_count;
++
++#ifdef GVR_PHASE_TIMING
++    long long phase_ts[5]; // clock64() timestamps: start, P1->P2, P2->P3, P3->P4, end
++#endif
+ };
+
+ // ============================================================================
+@@ -266,6 +270,9 @@ __device__ __noinline__ void heuristicTopKJob(float const* __restrict__ input, i
+     // ================================================================
+     // Phase 1 — Min/Max/Mean of pre-indexed values
+     // ================================================================
++#ifdef GVR_PHASE_TIMING
++    if (tid == 0) smem->phase_ts[0] = clock64();
++#endif
+
+     float local_min = FLT_MAX;
+     float local_max = -FLT_MAX;
+@@ -332,12 +339,33 @@ __device__ __noinline__ void heuristicTopKJob(float const* __restrict__ input, i
+                 outputIndices[i] = i;
+                 outputValues[i] = input[i];
+             }
++#ifdef GVR_PHASE_TIMING
++        __syncthreads();
++        if (tid == 0)
++        {
++            smem->phase_ts[4] = clock64();
++            // P1 ended here; P2/P3/P4 not executed -- set equal to P4-end
++            smem->phase_ts[1] = smem->phase_ts[4];
++            smem->phase_ts[2] = smem->phase_ts[4];
++            smem->phase_ts[3] = smem->phase_ts[4];
++            long long* timing_out = reinterpret_cast<long long*>(&outputValues[topK]);
++            timing_out[0] = smem->phase_ts[0];
++            timing_out[1] = smem->phase_ts[1];
++            timing_out[2] = smem->phase_ts[2];
++            timing_out[3] = smem->phase_ts[3];
++            timing_out[4] = smem->phase_ts[4];
++        }
++#endif
+         return;
+     }
+
+     // ================================================================
+     // Phase 2 — Interpolation threshold search
+     // ================================================================
++#ifdef GVR_PHASE_TIMING
++    __syncthreads();
++    if (tid == 0) smem->phase_ts[1] = clock64();
++#endif
+
+     blockCountGE(input, N, smem->threshold, smem, tid, warp_id, lane);
+
+@@ -434,6 +462,10 @@ __device__ __noinline__ void heuristicTopKJob(float const* __restrict__ input, i
+     // ================================================================
+     // Phase 3 — Ballot-free collect
+     // ================================================================
++#ifdef GVR_PHASE_TIMING
++    __syncthreads();
++    if (tid == 0) smem->phase_ts[2] = clock64();
++#endif
+
+     // OPT5: when done==1, Phase 2 already verified count in [TOP_K, MAX_CANDIDATES];
+     //        skip the redundant full-N blockCountGE re-check entirely.
+@@ -535,6 +567,10 @@ __device__ __noinline__ void heuristicTopKJob(float const* __restrict__ input, i
+     // ================================================================
+     // Phase 4 — Histogram-based selection + partition
+     // ================================================================
++#ifdef GVR_PHASE_TIMING
++    __syncthreads();
++    if (tid == 0) smem->phase_ts[3] = clock64();
++#endif
+
+     int const cand_count = min(smem->cand_count, MAX_CANDIDATES);
+
+@@ -545,6 +581,19 @@ __device__ __noinline__ void heuristicTopKJob(float const* __restrict__ input, i
+             outputValues[i] = smem->keys[i];
+             outputIndices[i] = smem->vals[i];
+         }
++#ifdef GVR_PHASE_TIMING
++        __syncthreads();
++        if (tid == 0)
++        {
++            smem->phase_ts[4] = clock64();
++            long long* timing_out = reinterpret_cast<long long*>(&outputValues[topK]);
++            timing_out[0] = smem->phase_ts[0];
++            timing_out[1] = smem->phase_ts[1];
++            timing_out[2] = smem->phase_ts[2];
++            timing_out[3] = smem->phase_ts[3];
++            timing_out[4] = smem->phase_ts[4];
++        }
++#endif
+         return;
+     }
+
+@@ -715,6 +764,19 @@ __device__ __noinline__ void heuristicTopKJob(float const* __restrict__ input, i
+             outputValues[i] = -FLT_MAX;
+             outputIndices[i] = -1;
+         }
++#ifdef GVR_PHASE_TIMING
++        __syncthreads();
++        if (tid == 0)
++        {
++            smem->phase_ts[4] = clock64();
++            long long* timing_out = reinterpret_cast<long long*>(&outputValues[topK]);
++            timing_out[0] = smem->phase_ts[0];
++            timing_out[1] = smem->phase_ts[1];
++            timing_out[2] = smem->phase_ts[2];
++            timing_out[3] = smem->phase_ts[3];
++            timing_out[4] = smem->phase_ts[4];
++        }
++#endif
+         return;
+     }
+
+@@ -728,6 +790,23 @@ __device__ __noinline__ void heuristicTopKJob(float const* __restrict__ input, i
+         outputValues[i] = -FLT_MAX;
+         outputIndices[i] = -1;
+     }
++
++#ifdef GVR_PHASE_TIMING
++    __syncthreads();
++    if (tid == 0)
++    {
++        smem->phase_ts[4] = clock64();
++        // Write 5 timestamps into the tail of outputValues (positions [topK..topK+9]).
++        // outputValues is a write-only scratch buffer -- downstream only reads indices.
++        // Each long long occupies 2 float slots.
++        long long* timing_out = reinterpret_cast<long long*>(&outputValues[topK]);
++        timing_out[0] = smem->phase_ts[0];
++        timing_out[1] = smem->phase_ts[1];
++        timing_out[2] = smem->phase_ts[2];
++        timing_out[3] = smem->phase_ts[3];
++        timing_out[4] = smem->phase_ts[4];
++    }
++#endif
+ }
+
+ // ============================================================================
