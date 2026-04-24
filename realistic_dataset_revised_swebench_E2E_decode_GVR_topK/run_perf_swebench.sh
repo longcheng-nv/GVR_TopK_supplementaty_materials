@@ -43,7 +43,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 model_card="deepseek-ai/DeepSeek-V3.2-Exp"
-model_path="/home/scratch.trt_llm_data/llm-models/DeepSeek-V3.2-Exp-FP4-v2/"
+model_path="${MODEL_PATH:-}"
+if [ -z "${model_path}" ]; then
+    echo "ERROR: Please set MODEL_PATH to your local DeepSeek-V3.2-Exp-FP4-v2 model directory."
+    exit 1
+fi
 max_batch_size=1
 kv_fraction=0.8
 
@@ -72,13 +76,13 @@ gpu_cleanup() {
 
 # --- Generate tokenized dataset from SWE-bench prompts ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TASKS_DIR="${SCRIPT_DIR}/../../deepseek-v3.2-logging/tasks"
+TASKS_DIR="${SCRIPT_DIR}/../longseqtasks"
 
 # Default to swe_bench_64k.jsonl if not specified
 if [ -z "${SWEBENCH_JSONL}" ]; then
     SWEBENCH_JSONL="swe_bench_64k.jsonl"
 fi
-# Resolve to absolute path: accept bare filename (looked up in tasks dir) or full path
+# Resolve to absolute path: accept bare filename (looked up in bundled longseqtasks/) or full path
 if [ -f "${SWEBENCH_JSONL}" ]; then
     SWEBENCH_INPUT="$(realpath "${SWEBENCH_JSONL}")"
 elif [ -f "${TASKS_DIR}/${SWEBENCH_JSONL}" ]; then

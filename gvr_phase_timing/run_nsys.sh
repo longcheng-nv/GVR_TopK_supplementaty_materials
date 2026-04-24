@@ -1,6 +1,11 @@
 #!/bin/bash
 #
-export SWE_BENCH_PATH=/home/scratch.loncheng_gpu/workspace/tllm_toolbox/indexer_topK_perf/data_distri/deepseek-v3.2-logging/notebooks/SWE_Bench_64K_decode_logits
+export SWE_BENCH_PATH="${SWE_BENCH_PATH:-$1}"
+if [ -z "${SWE_BENCH_PATH}" ]; then
+    echo "Usage: bash run_nsys.sh /path/to/SWE_Bench_64K_decode_logits"
+    echo "   or: SWE_BENCH_PATH=/path/to/SWE_Bench_64K_decode_logits bash run_nsys.sh"
+    exit 1
+fi
 nsys profile --trace=cuda,nvtx --force-overwrite=true -o ablation \
     python ablation_preidx_experiment.py profile \
         --data_dir $SWE_BENCH_PATH \

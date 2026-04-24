@@ -1,6 +1,12 @@
 # GVR Top-K Supplementary Materials
 
-This branch collects the supplementary materials for the paper. The repository currently contains three main directories covering phase-level profiling, real long-context prompt inputs, and end-to-end A/B benchmarking on real SWE-bench prompts.
+This public repository provides the supplementary materials for the paper
+*Guess-Verify-Refine: Data-Aware Top-K for Sparse-Attention Decoding on Blackwell via Temporal Correlation*.
+It contains three main components: phase-level kernel profiling, public long-context
+SWE-bench prompt inputs, and end-to-end A/B benchmarking scripts on real prompts.
+
+For the upstream TensorRT-LLM implementation of GVR Top-K, see the merged public PR:
+[`NVIDIA/TensorRT-LLM#12385`](https://github.com/NVIDIA/TensorRT-LLM/pull/12385).
 
 ## Directory Overview
 
@@ -54,7 +60,7 @@ Role of this directory:
 
 ## `realistic_dataset_revised_swebench_E2E_decode_GVR_topK/`
 
-This directory focuses on an **end-to-end A/B benchmark on real SWE-bench prompts**, comparing heuristic Top-K against the original radix-sort TopK under realistic decode workloads. Unlike `gvr_phase_timing/`, which concentrates on kernel-level breakdown, this directory emphasizes end-to-end metrics such as TTFT, TPOT, and DAR. The current script revision uses the TEP8/TRTLLM setup, caches OSL-specific tokenized datasets, and accepts explicit dataset paths or bare filenames resolved by the runner.
+This directory focuses on an **end-to-end A/B benchmark on real SWE-bench prompts**, comparing heuristic Top-K against the original radix-sort TopK under realistic decode workloads. Unlike `gvr_phase_timing/`, which concentrates on kernel-level breakdown, this directory emphasizes end-to-end metrics such as TTFT, TPOT, and DAR. The current script revision uses the TEP8 / TRTLLM setup, caches OSL-specific tokenized datasets, and accepts explicit dataset paths or bare filenames resolved by the runner.
 
 Key files:
 
@@ -88,4 +94,13 @@ If you want a quick starting point:
 - For the real benchmark workflow, start with `realistic_dataset_revised_swebench_E2E_decode_GVR_topK/README.md`
 - For phase-level kernel analysis, start with `gvr_phase_timing/README.md`
 - For the raw prompt inputs, start with `longseqtasks/`
+
+## Notes
+
+- The scripts in this repository are intended as supplementary research artifacts rather than
+  turnkey production tooling.
+- Some scripts require a local TensorRT-LLM checkout, a compatible GPU environment, and a
+  locally available DeepSeek tokenizer / model path.
+- Public prompt inputs are included in `longseqtasks/`; environment-specific paths should be
+  supplied explicitly when running the benchmarking or profiling scripts.
 

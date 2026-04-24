@@ -12,7 +12,7 @@ The TopK indexer in sparse attention is a significant fraction of E2E decode tim
 
 - 8x NVIDIA B200 GPUs
 - TensorRT-LLM with `trtllm-bench` on PATH (typically `~/.local/bin`)
-- DeepSeek-V3.2-Exp FP4 model available locally, for example at `PATH/TO/DeepSeek-V3.2-Exp-FP4-v2/`
+- DeepSeek-V3.2-Exp FP4 model available locally, provided via `MODEL_PATH=/path/to/DeepSeek-V3.2-Exp-FP4-v2/`
 - Python 3 with `transformers` installed (for tokenization)
 - `sudo` access for GPU power management setup
 
@@ -43,7 +43,7 @@ run_perf_swebench.sh [OPTIONS]
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--input <file>` | SWE-bench JSONL file; checks the given path, then `./`, then `../../deepseek-v3.2-logging/tasks/` for bare names | `swe_bench_64k.jsonl` |
+| `--input <file>` | SWE-bench JSONL file; checks the given path, then `./`, then the bundled `../longseqtasks/` directory for bare names | `swe_bench_64k.jsonl` |
 | `--entry <N>` | Run only entry N (0-indexed) from the dataset | all entries |
 | `--num-requests <N>` | Number of requests to benchmark | all entries, or 10 for single entry |
 | `--dataset_osl <N>` | Output sequence length per request | `2025` |
@@ -51,7 +51,7 @@ run_perf_swebench.sh [OPTIONS]
 
 Positional arguments are also supported for backward compatibility: `run_perf_swebench.sh [ENTRY_ID] [NUM_REQUESTS]`.
 
-For reproducibility, passing an explicit `--input /full/path/to/swe_bench_*.jsonl` is recommended. If a bare filename is given, the script first checks the current working directory and then falls back to `../../deepseek-v3.2-logging/tasks/`.
+For reproducibility, passing an explicit `--input /full/path/to/swe_bench_*.jsonl` is recommended. If a bare filename is given, the script first checks the current working directory and then falls back to the bundled `../longseqtasks/` directory.
 
 ### Examples
 
